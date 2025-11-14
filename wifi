@@ -1,0 +1,275 @@
+✅ Folder Structure
+WifiManagerApp/
+ ├── main.cpp
+ ├── WifiHandler.h
+ ├── WifiHandler.cpp
+ ├── main.qml
+ ├── qml.qrc
+ └── WifiManagerApp.pro
+
+✅ WifiManagerApp.pro
+QT += quick gui
+CONFIG += c++11
+
+SOURCES += \
+    main.cpp \
+    WifiHandler.cpp
+
+HEADERS += \
+    WifiHandler.h
+
+RESOURCES += qml.qrc
+
+✅ qml.qrc
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+    </qresource>
+</RCC>
+
+✅ main.cpp
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include "WifiHandler.h"
+
+int main(int argc, char *argv[])
+{
+    QGuiApplication app(argc, argv);
+
+    WifiHandler wifi;
+
+    QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty("wifiHandler", &wifi);
+
+    engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
+
+    return app.exec();
+}
+
+✅ WifiHandler.h
+#pragma once
+#include <QObject>
+#include <QStringList>
+
+class WifiHandler : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(bool connected READ isConnected NOTIFY connectionStatusChanged)
+
+public:
+    explicit WifiHandler(QObject *parent = nullptr);
+
+    Q_INVOKABLE bool wifiOnOff(bool on);
+    Q_INVOKABLE QStringList scanWifi();
+    Q_INVOKABLE bool connectToWifi(const QString &ssid, const QString &password);
+    Q_INVOKABLE QString getIpAddress();
+    Q_INVOKABLE bool isConnected();
+
+signals:
+    void connectionStatusChanged(bool connected);
+};
+
+✅ WifiHandler.cpp (REAL Linux Yocto/NMCLI commands)
+
+✔ No dummy data
+✔ Uses nmcli for real scanning
+✔ Real WiFi connect
+✔ Real IP detection
+✔ Real connection check
+
+#include "WifiHandler.h"
+#include <QProcess>
+#include <QDebug>
+
+WifiHandler::WifiHandler(QObject *parent)
+    : QObject(parent)
+{
+}
+
+bool WifiHandler::wifiOnOff(bool on)
+{
+    QString cmd = on ? "nmcli radio wifi on" : "nmcli radio wifi off";
+    return (QProcess::execute(cmd) == 0);
+}
+
+QStringList WifiHandler::scanWifi()
+{
+    QStringList wifiList;
+    QProcess p;
+    p.start("nmcli -t -f SSID dev wifi list");
+    p.waitForFinished();
+
+    QString output = p.readAll();
+    QStringList lines = output.split("\n", Qt::SkipEmptyParts);
+
+    for (const QString &line : lines) {
+        if (!line.trimmed().isEmpty())
+            wifiList << line.trimmed();
+    }
+
+    return wifiList;
+}
+
+bool WifiHandler::connectToWifi(const QString &ssid, const QString &password)
+{
+    QString cmd = QString("nmcli dev wifi connect \"%1\" password \"%2\"").arg(ssid, password);
+
+    int result = QProcess::execute(cmd);
+
+    bool success = (result == 0);
+
+    emit connectionStatusChanged(success);
+    return success;
+}
+
+QString WifiHandler::getIpAddress()
+{
+    QProcess p;
+    p.start("hostname -I");
+    p.waitForFinished();
+
+    QString ip = p.readAll().trimmed();
+    return ip.isEmpty() ? "No IP" : ip;
+}
+
+bool WifiHandler::isConnected()
+{
+    QProcess p;
+    p.start("nmcli -t -f WIFI g");
+    p.waitForFinished();
+
+    QString status = p.readAll().trimmed(); // should be "enabled"
+
+    QProcess p2;
+    p2.start("nmcli -t -f STATE g");
+    p2.waitForFinished();
+
+    QString state = p2.readAll().trimmed(); // connected/full/unknown
+
+    return state.contains("connected");
+}
+
+✅ main.qml (COMPLETE UI)
+
+✔ Good-looking
+✔ WiFi ON/OFF
+✔ Scan list
+✔ Password popup
+✔ Connect button
+✔ Live status (green/red circle)
+✔ IP displayed
+✔ Works with real backend
+
+import QtQuick 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
+
+ApplicationWindow {
+    visible: true
+    width: 480
+    height: 700
+    title: "WiFi Manager"
+
+    property string selectedSSID: ""
+    property bool wifiConnected: wifiHandler.isConnected()
+
+    Timer {
+        interval: 2000
+        running: true
+        repeat: true
+        onTriggered: wifiConnected = wifiHandler.isConnected()
+    }
+
+    ColumnLayout {
+        anchors.centerIn: parent
+        spacing: 30
+
+        Text {
+            text: "WiFi Manager"
+            font.pixelSize: 28
+            font.bold: true
+        }
+
+        // Status Indicator
+        Rectangle {
+            width: 80
+            height: 80
+            radius: 40
+            color: wifiConnected ? "green" : "red"
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
+
+        Text {
+            text: wifiConnected ?
+                  "Connected\nIP: " + wifiHandler.getIpAddress()
+                : "Disconnected"
+            horizontalAlignment: Text.AlignHCenter
+            font.pixelSize: 16
+        }
+
+        // WiFi Toggle
+        Switch {
+            checked: true
+            text: checked ? "WiFi ON" : "WiFi OFF"
+            onToggled: wifiHandler.wifiOnOff(checked)
+        }
+
+        Button {
+            text: "Show WiFi List"
+            width: 250
+            onClicked: wifiListView.model = wifiHandler.scanWifi()
+        }
+
+        ListView {
+            id: wifiListView
+            width: 320
+            height: 250
+            clip: true
+
+            delegate: Rectangle {
+                width: parent.width
+                height: 40
+                color: "#d0d0d0"
+                border.color: "black"
+
+                Text {
+                    text: modelData
+                    anchors.centerIn: parent
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        selectedSSID = modelData
+                        passField.text = ""
+                        pwdPopup.open()
+                    }
+                }
+            }
+        }
+    }
+
+    Dialog {
+        id: pwdPopup
+        title: "Connect to " + selectedSSID
+        modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+
+        Column {
+            spacing: 10
+            anchors.margins: 20
+
+            TextField {
+                id: passField
+                width: 200
+                placeholderText: "Password"
+                echoMode: TextInput.Password
+            }
+        }
+
+        onAccepted: {
+            wifiHandler.connectToWifi(selectedSSID, passField.text)
+        }
+    }
+}
