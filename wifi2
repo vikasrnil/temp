@@ -157,19 +157,25 @@ void WifiManager::updateStatus()
 📄 main.cpp
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include "WifiManager.h"
 
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
-    qmlRegisterType<WifiManager>("Backend", 1, 0, "WifiManager");
+    WifiManager wifi;   // Create object
 
     QQmlApplicationEngine engine;
+
+    // Expose C++ object to QML (NO registerType)
+    engine.rootContext()->setContextProperty("wifi", &wifi);
+
     engine.load(QUrl(QStringLiteral("qrc:/qml/main.qml")));
 
     return app.exec();
 }
+
 
 📄 qml/main.qml
 
