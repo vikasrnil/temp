@@ -188,11 +188,6 @@ Rectangle {
     height: 700
     color: "#f0f2f5"
 
-    // C++ WifiManager available as context property registered in main.cpp
-    WifiManager {
-        id: wifi
-    }
-
     Column {
         anchors.centerIn: parent
         spacing: 20
