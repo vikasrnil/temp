@@ -173,18 +173,16 @@ int main(int argc, char *argv[])
 
 📄 qml/main.qml
 
-Beautiful UI with Material buttons, popup, and icons.
-
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import Backend 1.0
 
 Rectangle {
     width: 480
     height: 700
     color: "#f0f2f5"
 
+    // C++ WifiManager available as context property registered in main.cpp
     WifiManager {
         id: wifi
     }
@@ -201,14 +199,12 @@ Rectangle {
             horizontalAlignment: Text.AlignHCenter
         }
 
-        // WiFi ON/OFF button
         Button {
             text: wifi.wifiOn ? "Turn WiFi OFF" : "Turn WiFi ON"
             width: 200
             onClicked: wifi.toggleWifi()
         }
 
-        // Status row
         Row {
             spacing: 10
             visible: wifi.wifiOn
@@ -224,7 +220,6 @@ Rectangle {
             }
         }
 
-        // IPv4 address
         Text {
             visible: wifi.wifiOn && wifi.connected
             text: "IPv4: " + wifi.ipv4
@@ -232,7 +227,6 @@ Rectangle {
             font.pixelSize: 18
         }
 
-        // Show WiFi list button
         Button {
             width: 200
             text: "Show WiFi List"
@@ -240,7 +234,6 @@ Rectangle {
             onClicked: wifi.scanWifi()
         }
 
-        // List of WiFi SSIDs
         ListView {
             width: 350
             height: 250
@@ -253,10 +246,11 @@ Rectangle {
                 color: "white"
                 radius: 6
                 border.color: "#ccc"
-                padding: 10
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
                     text: modelData
                     font.pixelSize: 18
                 }
@@ -272,13 +266,15 @@ Rectangle {
         }
     }
 
-    // Password Popup
     Popup {
         id: passwordPopup
         modal: true
         width: 300
         height: 200
-        background: Rectangle { color: "white"; radius: 10 }
+        background: Rectangle {
+            color: "white"
+            radius: 10
+        }
 
         Column {
             anchors.centerIn: parent
