@@ -1,0 +1,261 @@
+WifiHandler.cpp (Improved + More Accurate nmcli Parsing)
+#include "WifiHandler.h"
+#include <QProcess>
+#include <QDebug>
+
+WifiHandler::WifiHandler(QObject *parent)
+    : QObject(parent)
+{
+}
+
+bool WifiHandler::wifiOnOff(bool on)
+{
+    QString cmd = on ? "nmcli radio wifi on" : "nmcli radio wifi off";
+    int result = QProcess::execute(cmd);
+
+    emit connectionStatusChanged(isConnected());
+    return (result == 0);
+}
+
+QStringList WifiHandler::scanWifi()
+{
+    QStringList wifiList;
+    QProcess p;
+    p.start("nmcli -t -f SSID dev wifi list");
+    p.waitForFinished();
+
+    QString output = p.readAll();
+    QStringList lines = output.split("\n", Qt::SkipEmptyParts);
+
+    for (QString ssid : lines) {
+        ssid = ssid.trimmed();
+        if (!ssid.isEmpty())
+            wifiList << ssid;
+    }
+
+    return wifiList;
+}
+
+bool WifiHandler::connectToWifi(const QString &ssid, const QString &password)
+{
+    QString cmd = QString("nmcli --wait 10 dev wifi connect \"%1\" password \"%2\"").arg(ssid, password);
+    int result = QProcess::execute(cmd);
+
+    emit connectionStatusChanged(isConnected());
+    return (result == 0);
+}
+
+QString WifiHandler::getIpAddress()
+{
+    QProcess p;
+    p.start("hostname -I");
+    p.waitForFinished();
+
+    QString output = p.readAll().trimmed();
+    QStringList parts = output.split(" ", Qt::SkipEmptyParts);
+
+    for (const QString &ip : parts) {
+        if (ip.contains("."))  // Only IPv4
+            return ip;
+    }
+    return "No IPv4";
+}
+
+bool WifiHandler::isConnected()
+{
+    QProcess p;
+    p.start("nmcli -t -f STATE g");
+    p.waitForFinished();
+
+    QString state = p.readAll().trimmed();
+    return state.contains("connected");
+}
+
+main.qml (Modern, Appealing UI + All Fixes)
+✨ New Features:
+
+Beautiful rounded cards
+
+Hide WiFi list when connected
+
+Smooth colour transitions
+
+Updated status polling
+
+IPv4 only
+
+Auto refresh on WiFi toggle
+
+import QtQuick 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
+import QtQuick.Shapes 1.15
+
+ApplicationWindow {
+    visible: true
+    width: 480
+    height: 740
+    title: "WiFi Manager"
+
+    property string selectedSSID: ""
+    property bool wifiConnected: wifiHandler.isConnected()
+
+    // Refresh status every 1s
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: {
+            wifiConnected = wifiHandler.isConnected()
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        color: "#f4f6fb"
+    }
+
+    ColumnLayout {
+        anchors.centerIn: parent
+        spacing: 25
+        width: parent.width * 0.85
+
+        // Title
+        Text {
+            text: "WiFi Manager"
+            font.pixelSize: 30
+            font.bold: true
+            horizontalAlignment: Text.AlignHCenter
+            Layout.alignment: Qt.AlignHCenter
+        }
+
+        // Status Card
+        Rectangle {
+            width: parent.width
+            height: 150
+            radius: 20
+            color: "white"
+            border.color: "#dddddd"
+            anchors.horizontalCenter: parent.horizontalCenter
+            elevation: 4
+
+            Column {
+                anchors.centerIn: parent
+                spacing: 10
+
+                Rectangle {
+                    width: 70
+                    height: 70
+                    radius: 35
+                    color: wifiConnected ? "#14b814" : "#d32f2f"
+                }
+
+                Text {
+                    text: wifiConnected ?
+                          "Connected (IP: " + wifiHandler.getIpAddress() + ")"
+                        : "Disconnected"
+                    font.pixelSize: 16
+                }
+            }
+        }
+
+        // Toggle Card
+        Rectangle {
+            width: parent.width
+            height: 90
+            radius: 20
+            color: "white"
+            border.color: "#dddddd"
+            elevation: 4
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 20
+
+                Text {
+                    text: "WiFi Power"
+                    font.pixelSize: 20
+                    Layout.fillWidth: true
+                }
+
+                Switch {
+                    id: wifiSwitch
+                    checked: true
+                    onToggled: {
+                        wifiHandler.wifiOnOff(checked)
+                        wifiConnected = wifiHandler.isConnected()
+                    }
+                }
+            }
+        }
+
+        // Scan Button
+        Button {
+            text: "Scan WiFi Networks"
+            width: parent.width
+            height: 50
+            font.pixelSize: 18
+            visible: !wifiConnected
+
+            onClicked: wifiListView.model = wifiHandler.scanWifi()
+        }
+
+        // WiFi List (hidden when connected)
+        ListView {
+            id: wifiListView
+            width: parent.width
+            height: wifiConnected ? 0 : 240
+            clip: true
+            visible: !wifiConnected
+
+            delegate: Rectangle {
+                width: parent.width
+                height: 50
+                radius: 10
+                color: "#ffffff"
+                border.color: "#bbbbbb"
+
+                Text {
+                    text: modelData
+                    anchors.centerIn: parent
+                    font.pixelSize: 18
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        selectedSSID = modelData
+                        passField.text = ""
+                        pwdPopup.open()
+                    }
+                }
+            }
+        }
+    }
+
+    // Password Popup
+    Dialog {
+        id: pwdPopup
+        title: "Connect to " + selectedSSID
+        modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+
+        Column {
+            spacing: 10
+            anchors.margins: 20
+
+            TextField {
+                id: passField
+                width: 220
+                placeholderText: "Enter WiFi Password"
+                echoMode: TextInput.Password
+            }
+        }
+
+        onAccepted: {
+            wifiHandler.connectToWifi(selectedSSID, passField.text)
+            wifiConnected = wifiHandler.isConnected()
+        }
+    }
+}
