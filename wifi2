@@ -72,24 +72,9 @@ bool WifiHandler::isConnected()
 }
 
 main.qml (Modern, Appealing UI + All Fixes)
-✨ New Features:
-
-Beautiful rounded cards
-
-Hide WiFi list when connected
-
-Smooth colour transitions
-
-Updated status polling
-
-IPv4 only
-
-Auto refresh on WiFi toggle
-
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import QtQuick.Shapes 1.15
 
 ApplicationWindow {
     visible: true
@@ -105,9 +90,7 @@ ApplicationWindow {
         interval: 1000
         running: true
         repeat: true
-        onTriggered: {
-            wifiConnected = wifiHandler.isConnected()
-        }
+        onTriggered: wifiConnected = wifiHandler.isConnected()
     }
 
     Rectangle {
@@ -137,7 +120,6 @@ ApplicationWindow {
             color: "white"
             border.color: "#dddddd"
             anchors.horizontalCenter: parent.horizontalCenter
-            elevation: 4
 
             Column {
                 anchors.centerIn: parent
@@ -159,14 +141,13 @@ ApplicationWindow {
             }
         }
 
-        // Toggle Card
+        // WiFi Toggle Card
         Rectangle {
             width: parent.width
             height: 90
             radius: 20
             color: "white"
             border.color: "#dddddd"
-            elevation: 4
 
             RowLayout {
                 anchors.fill: parent
@@ -190,7 +171,7 @@ ApplicationWindow {
             }
         }
 
-        // Scan Button
+        // Scan Button (hidden when connected)
         Button {
             text: "Scan WiFi Networks"
             width: parent.width
