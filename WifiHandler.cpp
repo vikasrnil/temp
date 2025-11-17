@@ -7,105 +7,68 @@ WifiHandler::WifiHandler(QObject *parent)
 {
 }
 
-// ---------------------------------------------------------
-// Turn WiFi ON/OFF
-// ---------------------------------------------------------
 bool WifiHandler::wifiOnOff(bool on)
 {
-    QString cmd = on ? "nmcli radio wifi on" : "nmcli radio wifi off";
-    return (QProcess::execute(cmd) == 0);
+    QString command = on ? "nmcli radio wifi on" : "nmcli radio wifi off";
+    int exitCode = QProcess::execute(command);
+
+    bool currentStatus = isConnected();
+    if (currentStatus != lastStatus) {
+        lastStatus = currentStatus;
+        emit connectionStatusChanged(currentStatus);
+    }
+
+    return (exitCode == 0);
 }
 
-// ---------------------------------------------------------
-// Scan WiFi Networks
-// ---------------------------------------------------------
 QStringList WifiHandler::scanWifi()
 {
-    QStringList list;
+    QStringList result;
     QProcess p;
-
-    p.start("nmcli -t -f SSID dev wifi list ifname wlan0");
+    p.start("nmcli -t -f SSID device wifi list");
     p.waitForFinished();
 
-    QString out = p.readAll().trimmed();
-    if (out.isEmpty())
-        return list;
+    QString output = p.readAll();
+    for (const QString &line : output.split("\n")) {
+        if (!line.trimmed().isEmpty())
+            result << line.trimmed();
+    }
 
-    QStringList lines = out.split("\n", Qt::SkipEmptyParts);
-    for (const QString &l : lines)
-        if (!l.trimmed().isEmpty())
-            list.append(l.trimmed());
-
-    return list;
+    return result;
 }
 
-// ---------------------------------------------------------
-// Connect to WiFi
-// ---------------------------------------------------------
 bool WifiHandler::connectToWifi(const QString &ssid, const QString &password)
 {
-    QString cmd = QString("nmcli dev wifi connect \"%1\" password \"%2\" ifname wlan0")
-                    .arg(ssid, password);
+    QString cmd = QString("nmcli device wifi connect \"%1\" password \"%2\"").arg(ssid, password);
 
-    QProcess p;
-    p.start(cmd);
-    p.waitForFinished();
+    int exitCode = QProcess::execute(cmd);
 
-    bool success = (p.exitStatus() == QProcess::NormalExit && p.exitCode() == 0);
+    bool currentStatus = isConnected();
+    if (currentStatus != lastStatus) {
+        lastStatus = currentStatus;
+        emit connectionStatusChanged(currentStatus);
+    }
 
-    emit connectionStatusChanged(success);
-    emit ssidChanged(getConnectedSSID());
-    emit ipChanged(getIpAddress());
-
-    return success;
+    return (exitCode == 0);
 }
 
-// ---------------------------------------------------------
-// Get Device IP Address
-// ---------------------------------------------------------
 QString WifiHandler::getIpAddress()
 {
     QProcess p;
     p.start("hostname -I");
     p.waitForFinished();
 
-    QString output = p.readAll().trimmed();
-    QStringList list = output.split(" ", Qt::SkipEmptyParts);
+    QString ip = p.readAll().trimmed();
+    QStringList list = ip.split(" ");
 
-    for (const QString &ip : list) {
-        QRegExp ipv4("^(\\d{1,3}\\.){3}\\d{1,3}$");
-        if (ipv4.exactMatch(ip))
-            return ip;
-    }
+    if (list.isEmpty())
+        return "";
 
-    return "No IP";
+    return list.first();  // only IPv4
 }
 
-// ---------------------------------------------------------
-// Get Connected SSID
-// ---------------------------------------------------------
-QString WifiHandler::getConnectedSSID()
-{
-    QProcess p;
-    p.start("nmcli -t -f ACTIVE,SSID dev wifi");
-    p.waitForFinished();
-
-    QString out = p.readAll().trimmed();
-    QStringList lines = out.split("\n");
-
-    for (const QString &line : lines) {
-        if (line.startsWith("yes:")) {
-            return line.section(":", 1, 1);
-        }
-    }
-
-    return "";
-}
-
-// ---------------------------------------------------------
-// Is Connected?
-// ---------------------------------------------------------
 bool WifiHandler::isConnected()
 {
-    return !getConnectedSSID().isEmpty();
+    QString ip = getIpAddress();
+    return !ip.isEmpty();
 }
