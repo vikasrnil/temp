@@ -1,147 +1,136 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
 
-ApplicationWindow {
-    visible: true
-    width: 800
-    height: 420
-    title: "WiFi Manager"
+Rectangle {
+    width: 480
+    height: 700
+    color: "#f0f2f5"
 
-    property string selectedSSID: ""
-
-    Timer {
-        interval: 1200
-        running: true
-        repeat: true
-        onTriggered: {
-            wifiListModel.clear()
-            var list = wifiHandler.scanWifi()
-            for (var i = 0; i < list.length; i++)
-                wifiListModel.append({ name: list[i] })
+    WifiHandler {
+        id: wifi
+        onConnectionStatusChanged: {
+            statusText.text = connected ? "Connected" : "Disconnected"
+            statusIcon.color = connected ? "green" : "red"
         }
     }
 
     Column {
-        anchors.fill: parent
-        spacing: 16
-        padding: 20
+        anchors.centerIn: parent
+        spacing: 20
 
-        // Header
-        Text {
-            text: "WiFi Manager"
-            font.pixelSize: 30
-            font.bold: true
-            anchors.horizontalCenter: parent.horizontalCenter
-        }
-
-        // WiFi Status Row
         Row {
             spacing: 10
-            anchors.horizontalCenter: parent.horizontalCenter
+            Text { text: "Status:"; font.pixelSize: 20 }
 
             Rectangle {
-                width: 20
-                height: 20
+                id: statusIcon
+                width: 20; height: 20
                 radius: 10
-                color: wifiHandler.connected ? "green" : "red"
+                color: "red"
             }
 
             Text {
-                font.pixelSize: 18
-                text: wifiHandler.connected
-                      ? "Connected to " + wifiHandler.connectedSSID +
-                        " (IP: " + wifiHandler.ipAddress + ")"
-                      : "Disconnected"
+                id: statusText
+                text: wifi.connected ? "Connected" : "Disconnected"
+                font.pixelSize: 20
             }
         }
 
-        // WiFi Switch
-        Row {
-            spacing: 10
-            anchors.horizontalCenter: parent.horizontalCenter
-
-            Text { text: "WiFi:"; font.pixelSize: 20 }
-
-            Switch {
-                id: wifiSwitch
-                checked: true
-                onToggled: wifiHandler.wifiOnOff(checked)
+        // WiFi ON / OFF BUTTON
+        Button {
+            id: wifiToggle
+            text: "WiFi ON / OFF"
+            onClicked: {
+                wifi.wifiOnOff(!wifi.connected)
             }
         }
 
-        // WiFi List
-        Rectangle {
-            width: parent.width - 40
-            height: 200
-            color: "white"
-            radius: 10
-            border.width: 1
-            border.color: "#ccc"
+        // SHOW / HIDE WiFi LIST BUTTON
+        Button {
+            id: listToggle
+            text: wifiList.visible ? "Hide WiFi List" : "Show WiFi List"
+            onClicked: {
+                wifiList.visible = !wifiList.visible
+                if (wifiList.visible)
+                    wifiListModel = wifi.scanWifi()
+            }
+        }
 
-            ListView {
-                anchors.fill: parent
-                model: ListModel { id: wifiListModel }
-                spacing: 4
+        // LIST MODEL
+        property var wifiListModel: []
 
-                delegate: Rectangle {
-                    width: parent.width
-                    height: 40
-                    radius: 6
-                    color: "#f2f2f2"
-                    border.width: 1
-                    border.color: "#ddd"
+        // WIFI LIST VIEW
+        ListView {
+            id: wifiList
+            visible: false
+            width: 350
+            height: 250
+            clip: true
 
-                    Row {
-                        anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 10
+            model: wifiListModel
 
-                        Text {
-                            text: name
-                            font.pixelSize: 16
-                        }
+            delegate: Rectangle {
+                width: parent.width
+                height: 40
+                color: "#ffffff"
+                border.color: "#cccccc"
+                Text {
+                    anchors.centerIn: parent
+                    text: modelData
+                }
 
-                        Rectangle {
-                            width: 12
-                            height: 12
-                            radius: 6
-                            color: wifiHandler.connectedSSID === name ? "green" : "transparent"
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: {
-                            selectedSSID = name
-                            passField.text = ""
-                            pwdPopup.open()
-                        }
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        popupSsid.text = modelData
+                        passwordPopup.open()
                     }
                 }
             }
         }
     }
 
-    // Password Popup
-    Dialog {
-        id: pwdPopup
-        title: "Connect to " + selectedSSID
+    // PASSWORD POPUP
+    Popup {
+        id: passwordPopup
         modal: true
-        standardButtons: Dialog.Ok | Dialog.Cancel
+        width: 300
+        height: 200
+        focus: true
 
         Column {
+            anchors.centerIn: parent
             spacing: 10
-            padding: 20
+
+            Text {
+                id: popupSsid
+                text: ""
+                font.pixelSize: 20
+            }
 
             TextField {
-                id: passField
-                width: 250
+                id: passwordField
+                width: 200
                 placeholderText: "Password"
                 echoMode: TextInput.Password
             }
-        }
 
-        onAccepted: wifiHandler.connectToWifi(selectedSSID, passField.text)
+            Button {
+                text: "Connect"
+                onClicked: {
+                    if (wifi.connectToWifi(popupSsid.text, passwordField.text)) {
+                        passwordPopup.close()
+                        listToggle.text = "Show WiFi List"
+                        wifiList.visible = false
+                    }
+                }
+            }
+
+            Button {
+                text: "Cancel"
+                onClicked: passwordPopup.close()
+            }
+        }
     }
 }
