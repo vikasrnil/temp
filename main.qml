@@ -1,136 +1,169 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
 
-Rectangle {
-    width: 480
-    height: 700
-    color: "#f0f2f5"
+ApplicationWindow {
+    visible: true
+    width: 800
+    height: 450
+    title: "WiFi Manager"
 
-    WifiHandler {
-        id: wifi
-        onConnectionStatusChanged: {
-            statusText.text = connected ? "Connected" : "Disconnected"
-            statusIcon.color = connected ? "green" : "red"
+    property bool wifiOn: wifi.wifiOn
+    property bool wifiConnected: false
+    property string connectedSSID: ""
+    property string ipAddr: ""
+    property bool showWifiList: false
+    property string selectedSSID: ""
+
+    Timer {
+        interval: 1500
+        running: true
+        repeat: true
+        onTriggered: {
+            wifiConnected = wifi.connected
+            connectedSSID = wifi.getConnectedSSID()
+            ipAddr = wifi.getIpAddress()
         }
     }
 
     Column {
-        anchors.centerIn: parent
-        spacing: 20
+        anchors.fill: parent
+        spacing: 12
+        padding: 20
 
+        // Title
+        Text {
+            text: "WiFi Manager"
+            font.pixelSize: 30
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
+
+        // WiFi status
         Row {
             spacing: 10
-            Text { text: "Status:"; font.pixelSize: 20 }
+            anchors.horizontalCenter: parent.horizontalCenter
 
             Rectangle {
-                id: statusIcon
-                width: 20; height: 20
-                radius: 10
-                color: "red"
+                width: 16
+                height: 16
+                radius: 8
+                color: !wifiOn ? "gray" : (wifiConnected ? "green" : "red")
             }
 
             Text {
-                id: statusText
-                text: wifi.connected ? "Connected" : "Disconnected"
-                font.pixelSize: 20
+                text: !wifiOn
+                      ? "WiFi Off"
+                      : (wifiConnected ? "Connected to " + connectedSSID + " (" + ipAddr + ")" : "Disconnected")
+                color: wifiConnected ? "green" : "red"
             }
         }
 
-        // WiFi ON / OFF BUTTON
+        // WiFi toggle
+        Row {
+            spacing: 8
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            Text { text: "WiFi:" }
+
+            Switch {
+                checked: wifiOn
+                onToggled: {
+                    wifiOn = checked
+                    wifi.wifiOn = checked
+                    if (!checked) showWifiList = false
+                }
+            }
+        }
+
+        // Show WiFi list button
         Button {
-            id: wifiToggle
-            text: "WiFi ON / OFF"
+            text: showWifiList ? "Hide WiFi List" : "Show WiFi List"
+            width: 240
+            anchors.horizontalCenter: parent.horizontalCenter
             onClicked: {
-                wifi.wifiOnOff(!wifi.connected)
+                showWifiList = !showWifiList
+                if (showWifiList) wifi.scanWifi()
             }
         }
 
-        // SHOW / HIDE WiFi LIST BUTTON
-        Button {
-            id: listToggle
-            text: wifiList.visible ? "Hide WiFi List" : "Show WiFi List"
-            onClicked: {
-                wifiList.visible = !wifiList.visible
-                if (wifiList.visible)
-                    wifiListModel = wifi.scanWifi()
-            }
-        }
-
-        // LIST MODEL
-        property var wifiListModel: []
-
-        // WIFI LIST VIEW
-        ListView {
-            id: wifiList
-            visible: false
-            width: 350
-            height: 250
+        // WiFi list view
+        Rectangle {
+            width: parent.width - 40
+            height: showWifiList ? 180 : 0
+            Behavior on height { NumberAnimation { duration: 150 } }
+            color: "white"
+            radius: 10
+            border.color: "#ccc"
+            visible: showWifiList
             clip: true
 
-            model: wifiListModel
+            ListView {
+                id: wifiListView
+                anchors.fill: parent
+                model: ListModel {}
 
-            delegate: Rectangle {
-                width: parent.width
-                height: 40
-                color: "#ffffff"
-                border.color: "#cccccc"
-                Text {
-                    anchors.centerIn: parent
-                    text: modelData
-                }
+                delegate: Rectangle {
+                    width: parent.width
+                    height: 44
+                    color: "#f5f5f5"
+                    border.color: "#ccc"
+                    radius: 6
 
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: {
-                        popupSsid.text = modelData
-                        passwordPopup.open()
+                    Row {
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        spacing: 10
+
+                        Text { text: name; width: parent.width * 0.8 }
+
+                        Rectangle {
+                            width: 12; height: 12; radius: 6
+                            color: name === connectedSSID ? "green" : "transparent"
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            selectedSSID = name
+                            passField.text = ""
+                            pwdPopup.open()
+                        }
                     }
                 }
             }
         }
     }
 
-    // PASSWORD POPUP
-    Popup {
-        id: passwordPopup
+    // Password Popup
+    Dialog {
+        id: pwdPopup
         modal: true
-        width: 300
-        height: 200
-        focus: true
+        title: "Connect to " + selectedSSID
+        standardButtons: Dialog.Ok | Dialog.Cancel
 
         Column {
-            anchors.centerIn: parent
-            spacing: 10
-
-            Text {
-                id: popupSsid
-                text: ""
-                font.pixelSize: 20
-            }
+            spacing: 10; padding: 20
 
             TextField {
-                id: passwordField
-                width: 200
+                id: passField
                 placeholderText: "Password"
                 echoMode: TextInput.Password
+                width: 240
             }
+        }
 
-            Button {
-                text: "Connect"
-                onClicked: {
-                    if (wifi.connectToWifi(popupSsid.text, passwordField.text)) {
-                        passwordPopup.close()
-                        listToggle.text = "Show WiFi List"
-                        wifiList.visible = false
-                    }
-                }
-            }
+        onAccepted: {
+            wifi.connectToWifi(selectedSSID, passField.text)
+        }
+    }
 
-            Button {
-                text: "Cancel"
-                onClicked: passwordPopup.close()
-            }
+    // Handle scan results
+    Connections {
+        target: wifi
+        onWifiScanCompleted: {
+            wifiListView.model.clear()
+            for (var i = 0; i < wifiList.length; i++)
+                wifiListView.model.append({ name: wifiList[i] })
         }
     }
 }
