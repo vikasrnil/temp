@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Farm Plot Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    html, body, #map { height: 100%; margin: 0; background: #222; }
+    .leaflet-container { background: #333 !important; }
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+<div id="map"></div>
+<script>
+  const ACCESS_TOKEN = "pk.eyJ1Ijoic3VtaXRjaGF0dGVyamVlIiwiYSI6ImNrd2prODhoazB6enIycHBrZmRrY2FtMGkifQ.WS22x5YJykpK9aFATKT8EA";
+  const map = L.map("map").setView([28.436, 77.304], 18);
+  L.tileLayer(`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}@2x.png?access_token=${ACCESS_TOKEN}`, { maxZoom: 22, tileSize: 512, zoomOffset: -1 }).addTo(map);
+
+  
+let manualPoints = [];
+let manualMarkers = [];
+let manualLine = L.polyline([], { color: "yellow", weight: 3 }).addTo(map);
+let savedPolygon = null;
+let searchMarker = null;
+
+
+map.on("click", function (e) {
+  let lat = e.latlng.lat;
+  let lng = e.latlng.lng;
+
+  manualPoints.push([lat, lng]);
+
+  let m = L.marker([lat, lng]).addTo(map);
+  manualMarkers.push(m);
+
+  manualLine.setLatLngs(manualPoints);
+
+  // AUTO POLYGON (OUTLINE ONLY)
+  if (manualPoints.length >= 3) {
+    if (!savedPolygon) {
+      savedPolygon = L.polygon(manualPoints, {
+        color: "yellow",
+        weight: 3,
+        fill: false,        // 👈 no fill
+        fillOpacity: 0
+      }).addTo(map);
+    } else {
+      savedPolygon.setLatLngs(manualPoints);
+    }
+  }
+});
+
+
+
+function plotFarm() {
+  if (!savedPolygon || manualPoints.length < 3) return;
+
+  savedPolygon.setStyle({
+    fill: true,
+    fillColor: "green",
+    fillOpacity: 0.4,   // 👈 solid fill
+    color: "yellow",
+    weight: 2
+  });
+
+  map.fitBounds(savedPolygon.getBounds());
+}
+
+
+  function clearMap() {
+    manualPoints = [];
+    manualLine.setLatLngs([]);
+    manualMarkers.forEach(m => map.removeLayer(m));
+    manualMarkers = [];
+    if (savedPolygon) { map.removeLayer(savedPolygon); savedPolygon = null; }
+    if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+  }
+
+  function clearAll() { clearMap(); }
+
+  function saveFarm() { return JSON.stringify(manualPoints); }
+
+  function loadSavedFarm(json) {
+    clearMap();
+    try {
+      let arr = JSON.parse(json);
+      manualPoints = arr;
+      arr.forEach(pt => {
+        let m = L.marker(pt).addTo(map);
+        manualMarkers.push(m);
+      });
+      manualLine.setLatLngs(arr);
+      if (arr.length > 2) {
+        savedPolygon = L.polygon(arr, { color: "blue" }).addTo(map);
+        map.fitBounds(savedPolygon.getBounds());
+      }
+    } catch (e) { console.error("Invalid JSON", e); }
+  }
+
+  function searchLocation(query) {
+    if (!query || query.trim() === "") return;
+    let url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${ACCESS_TOKEN}`;
+    fetch(url).then(r => r.json()).then(data => {
+      if (!data.features.length) { alert("Location not found!"); return; }
+      let [lng, lat] = data.features[0].geometry.coordinates;
+      map.flyTo([lat, lng], 18);
+      if (!searchMarker) searchMarker = L.marker([lat, lng]).addTo(map); else searchMarker.setLatLng([lat, lng]);
+    }).catch(err => console.error("Search error:", err));
+  }
+</script>
+</body>
+</html>

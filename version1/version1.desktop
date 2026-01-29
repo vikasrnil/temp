@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=qt version1
+Exec=/usr/bin/version1
+Icon=applications-system
+X-GNOME-Autostart-enabled=true
+NoDisplay=false
+Hidden=false
+Comment=Start at boot
+X-GNOME-Autostart-Delay=0
+

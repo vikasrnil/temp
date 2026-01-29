@@ -1,0 +1,26 @@
+{
+    "escorts": {
+        "hp": "",
+        "image": "qrc:/images/tractor.png",
+        "model": "",
+        "name": "escorts",
+        "notes": "",
+        "width": ""
+    },
+    "v809": {
+        "hp": "10",
+        "image": "qrc:/images/tractor.png",
+        "model": "tr",
+        "name": "v809",
+        "notes": "",
+        "width": "40"
+    },
+    "v9": {
+        "hp": "18",
+        "image": "qrc:/images/tractor.png",
+        "model": "123",
+        "name": "v9",
+        "notes": "",
+        "width": "6"
+    }
+}

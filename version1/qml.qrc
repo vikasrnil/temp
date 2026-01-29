@@ -1,0 +1,45 @@
+<RCC>
+    <qresource prefix="/">
+    
+        <file>qml/Main.qml</file>
+        <file>qml/HomePage.qml</file>
+        <file>qml/FeatureButton.qml</file>
+        <file>qml/SavedTractorsPage.qml</file>
+        <file>qml/TractorDetailsPopup.qml</file>
+        <file>qml/TractorPage.qml</file>
+        <file>qml/SavedImplementsPage.qml</file>
+        <file>qml/ImplementDetailsPopup.qml</file>
+        <file>qml/ImplementPage.qml</file>
+        <file>qml/AddFarmOptionsPage.qml</file>
+        <file>qml/AddFarmPage.qml</file>
+        <file>qml/FarmPlotPage.qml</file>
+        <file>qml/GeneratePathPage.qml</file>
+        <file>qml/PlotFarmPage.qml</file>
+        <file>qml/SavedFarmPage.qml</file>
+        <file>qml/TraceFarmPage.qml</file>
+        <file>qml/ViewFarmPage.qml</file>
+        <file>qml/WifiPage.qml</file>
+        
+        <file>farmdb.json</file>
+        <file>implementdb.json</file>
+        <file>tractordb.json</file>
+      
+        <file>images/Farmland.png</file>
+        <file>images/logo.png</file>
+        <file>images/implement.png</file>
+        <file>images/Settings.png</file>
+        <file>images/Path.png</file>
+        <file>images/tractor.png</file>
+        <file>images/frame1.png</file>
+        <file>images/frame2.png</file>
+        <file>images/frame3.png</file>
+        <file>images/frame4.png</file>
+        <file>images/frame5.png</file>
+        <file>images/lock.png</file>
+        
+        <file>map.html</file>
+        <file>map_view.html</file>
+        
+    </qresource>
+</RCC>
+

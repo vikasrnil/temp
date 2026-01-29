@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+  html, body, #map { height: 100%; margin: 0; padding: 0; }
+</style>
+<link rel="stylesheet"
+ href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+<div id="map"></div>
+
+<script>
+  const ACCESS_TOKEN = "pk.eyJ1Ijoic3VtaXRjaGF0dGVyamVlIiwiYSI6ImNrd2prODhoazB6enIycHBrZmRrY2FtMGkifQ.WS22x5YJykpK9aFATKT8EA";
+  const map = L.map("map").setView([28.436, 77.304], 18);
+  L.tileLayer(`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}@2x.png?access_token=${ACCESS_TOKEN}`, { maxZoom: 22, tileSize: 512, zoomOffset: -1 }).addTo(map);
+
+  let manualLine = L.polyline([], { color: "yellow", weight: 3 }).addTo(map);
+  let savedPolygon = null;
+  let searchMarker = null;
+
+  map.on("click", function (e) {
+    let lat = e.latlng.lat, lng = e.latlng.lng;
+    manualPoints.push([lat, lng]);
+    let m = L.marker([lat, lng]).addTo(map);
+    manualMarkers.push(m);
+    manualLine.setLatLngs(manualPoints);
+  });
+
+window.showSavedFarm = function(jsonString) {
+    try {
+        var arr = JSON.parse(jsonString);
+        if (arr.length === 0) return;
+
+        var polyPoints = arr.map(function(p) { return [p[0], p[1]] });
+        var polygon = L.polygon(polyPoints, {color:"cyan"}).addTo(map);
+        map.fitBounds(polygon.getBounds(), {padding:[20,20]});
+    } catch(e) {
+        console.error("Invalid JSON", e);
+    }
+}
+</script>
+</body>
+</html>
